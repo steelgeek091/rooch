@@ -45,10 +45,10 @@ pub enum LedgerTxData {
 }
 
 impl LedgerTxData {
-    pub fn tx_hash(&self) -> Result<H256> {
+    pub fn tx_hash(&mut self) -> Result<H256> {
         match self {
             LedgerTxData::L1Block(block) => block.tx_hash(),
-            LedgerTxData::L2Tx(tx) => tx.tx_hash(),
+            LedgerTxData::L2Tx(ref mut tx) => tx.tx_hash(),
         }
     }
 }
@@ -91,7 +91,7 @@ impl LedgerTransaction {
         }
     }
 
-    pub fn tx_hash(&self) -> Result<H256> {
+    pub fn tx_hash(&mut self) -> Result<H256> {
         self.data.tx_hash()
     }
 

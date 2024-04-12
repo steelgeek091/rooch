@@ -125,7 +125,7 @@ impl RustBindingTest {
         l1_block: L1BlockWithBody,
     ) -> TxContext {
         let max_gas_amount = GasConfig::DEFAULT_MAX_GAS_AMOUNT * 1000;
-        let tx_hash = l1_block.block.tx_hash();
+        let tx_hash = l1_block.block.tx_hash().expect("get tx_hash failed");
         let tx_size = l1_block.block.tx_size();
         TxContext::new(
             self.sequencer.into(),

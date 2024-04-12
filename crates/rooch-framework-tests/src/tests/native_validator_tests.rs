@@ -24,7 +24,7 @@ fn test_validate() {
     let tx_data = RoochTransactionData::new_for_test(sender, sequence_number, action);
     let tx = keystore.sign_transaction(&sender, tx_data, None).unwrap();
     let auth_info = tx.authenticator_info().unwrap();
-    let move_tx: MoveOSTransaction = tx.into();
+    let move_tx: MoveOSTransaction = tx.try_into().unwrap();
 
     native_validator
         .validate(&move_tx.ctx, auth_info.authenticator.payload)

@@ -9,7 +9,7 @@ pub fn l1_block_encode_size_benchmark(c: &mut Criterion) {
     let l1_block = L1Block::default();
     c.bench_function("l1_block_encode_siz", |b| {
         b.iter(|| {
-            let _ = l1_block.encode().len() as u64;
+            let _ = l1_block.encode().expect("L1Block encode failed").len() as u64;
         })
     });
 }

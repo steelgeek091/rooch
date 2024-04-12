@@ -319,11 +319,14 @@ impl Handler<IndexerEventsMessage> for IndexerActor {
             moveos_tx,
         } = msg;
 
-        let events: Vec<_> = events
-            .into_iter()
-            .map(|event| IndexedEvent::new(event, transaction.clone(), moveos_tx.clone()))
-            .collect();
-        self.indexer_store.persist_events(events)?;
+        let mut events_vec = Vec::new();
+        for event in events.iter() {
+            let indexed_event =
+                IndexedEvent::new(event.clone(), transaction.clone(), moveos_tx.clone())?;
+            events_vec.push(indexed_event);
+        }
+
+        self.indexer_store.persist_events(events_vec)?;
         Ok(())
     }
 }

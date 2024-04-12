@@ -124,7 +124,7 @@ impl MoveOS {
     }
 
     pub fn init_genesis<
-        T: Into<MoveOSTransaction>,
+        T: TryInto<MoveOSTransaction>,
         GT: MoveState + Clone,
         BGT: MoveState + Clone,
     >(
@@ -140,8 +140,12 @@ impl MoveOS {
         genesis_txs
             .into_iter()
             .map(|tx| {
+                let t = match tx.try_into() {
+                    Ok(v) => v,
+                    Err(_) => return Err(anyhow::Error::msg("")),
+                };
                 self.verify_and_execute_genesis_tx(
-                    tx.into(),
+                    t,
                     genesis_ctx.clone(),
                     bitcoin_genesis_ctx.clone(),
                 )

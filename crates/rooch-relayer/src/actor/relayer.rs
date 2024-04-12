@@ -74,7 +74,7 @@ impl RelayerActor {
                             .executor
                             .get_sequence_number(self.relayer_address)
                             .await?;
-                        let tx_hash = l1_block.block.tx_hash();
+                        let tx_hash = l1_block.block.tx_hash()?;
                         let ctx = TxContext::new(
                             self.relayer_address,
                             sequence_number,

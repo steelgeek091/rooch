@@ -131,7 +131,7 @@ impl RoochAPIServer for RoochServer {
             bcs::from_bytes::<RoochTransaction>(&payload.0).map_err(anyhow::Error::from)?;
         info!("send_raw_transaction tx: {:?}", tx);
 
-        let hash = tx.tx_hash();
+        let hash = tx.tx_hash()?;
         self.rpc_service.quene_tx(tx).await?;
         Ok(hash.into())
     }

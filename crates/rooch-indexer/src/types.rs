@@ -70,7 +70,7 @@ impl IndexedTransaction {
         };
         //TODO index L1Block
         let indexed_transaction = IndexedTransaction {
-            tx_hash: transaction.tx_hash(),
+            tx_hash: transaction.tx_hash()?,
             // The tx order of this transaction.
             tx_order: transaction.sequence_info.tx_order,
 
@@ -135,21 +135,21 @@ impl IndexedEvent {
         event: Event,
         mut transaction: LedgerTransaction,
         moveos_tx: VerifiedMoveOSTransaction,
-    ) -> Self {
-        IndexedEvent {
+    ) -> Result<Self> {
+        Ok(IndexedEvent {
             event_handle_id: event.event_id.event_handle_id,
             event_seq: event.event_id.event_seq,
             event_type: event.event_type,
             event_data: event.event_data,
             event_index: event.event_index,
 
-            tx_hash: transaction.tx_hash(),
+            tx_hash: transaction.tx_hash()?,
             tx_order: transaction.sequence_info.tx_order,
             sender: moveos_tx.ctx.sender,
 
             //TODO record transaction timestamp
             created_at: 0,
-        }
+        })
     }
 }
 

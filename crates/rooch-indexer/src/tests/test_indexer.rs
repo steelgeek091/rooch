@@ -204,7 +204,7 @@ fn test_event_store() -> Result<()> {
     };
 
     let indexed_event =
-        IndexedEvent::new(random_event, random_transaction, random_moveos_tx.clone());
+        IndexedEvent::new(random_event, random_transaction, random_moveos_tx.clone())?;
     let events = vec![indexed_event];
     let _ = indexer_store.persist_events(events)?;
 

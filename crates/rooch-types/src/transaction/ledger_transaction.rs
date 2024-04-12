@@ -15,12 +15,16 @@ pub struct L1Block {
 }
 
 impl L1Block {
-    pub fn encode(&self) -> Vec<u8> {
-        bcs::to_bytes(self).expect("encode transaction should success")
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        match bcs::to_bytes(self) {
+            Ok(v) => Ok(v),
+            Err(_) => Err(anyhow::Error::msg("encode transaction should success")),
+        }
     }
 
-    pub fn tx_hash(&self) -> H256 {
-        moveos_types::h256::sha3_256_of(self.encode().as_slice())
+    pub fn tx_hash(&self) -> Result<H256> {
+        let block_bytes = self.encode()?;
+        Ok(moveos_types::h256::sha3_256_of(block_bytes.as_slice()))
     }
 
     pub fn tx_size(&self) -> u64 {
@@ -41,7 +45,7 @@ pub enum LedgerTxData {
 }
 
 impl LedgerTxData {
-    pub fn tx_hash(&self) -> H256 {
+    pub fn tx_hash(&self) -> Result<H256> {
         match self {
             LedgerTxData::L1Block(block) => block.tx_hash(),
             LedgerTxData::L2Tx(tx) => tx.tx_hash(),
@@ -87,7 +91,7 @@ impl LedgerTransaction {
         }
     }
 
-    pub fn tx_hash(&self) -> H256 {
+    pub fn tx_hash(&self) -> Result<H256> {
         self.data.tx_hash()
     }
 

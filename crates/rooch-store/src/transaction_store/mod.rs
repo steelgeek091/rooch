@@ -60,7 +60,7 @@ impl TransactionDBStore {
     }
 
     pub fn save_transaction(&mut self, transaction: LedgerTransaction) -> Result<()> {
-        let tx_hash = transaction.tx_hash();
+        let tx_hash = transaction.tx_hash()?;
         let tx_order = transaction.sequence_info.tx_order;
         self.tx_store.kv_put(tx_hash, transaction)?;
         self.tx_sequence_info_mapping_store

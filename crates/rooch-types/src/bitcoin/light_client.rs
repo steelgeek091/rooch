@@ -81,15 +81,30 @@ impl<'a> BitcoinLightClientModule<'a> {
             vec![MoveValue::Address(block_hash.into_address())],
         );
         let ctx = TxContext::new_readonly_ctx(AccountAddress::ZERO);
-        let block_header =
-            self.caller
-                .call_function(&ctx, call)?
-                .into_result()
-                .map(|mut values| {
-                    let value = values.pop().expect("should have one return value");
-                    bcs::from_bytes::<MoveOption<Header>>(&value.value)
-                        .expect("should be a valid MoveOption<BlockHeader>")
-                })?;
+        let block_header = {
+            let call_result = self.caller.call_function(&ctx, call)?.into_result();
+            match call_result {
+                Ok(mut return_vec) => {
+                    let first_return_value = match return_vec.pop() {
+                        None => return Err(anyhow::Error::msg("should have one return value")),
+                        Some(v) => v,
+                    };
+                    match bcs::from_bytes::<MoveOption<Header>>(&first_return_value.value) {
+                        Ok(header) => header,
+                        Err(_) => {
+                            return Err(anyhow::Error::msg(
+                                "should be a valid MoveOption<BlockHeader>",
+                            ))
+                        }
+                    }
+                }
+                Err(_) => {
+                    return Err(anyhow::Error::msg(
+                        "should be a valid MoveOption<BlockHeader>",
+                    ))
+                }
+            }
+        };
         Ok(block_header.into())
     }
 
@@ -100,15 +115,30 @@ impl<'a> BitcoinLightClientModule<'a> {
             vec![MoveValue::U64(block_height)],
         );
         let ctx = TxContext::new_readonly_ctx(AccountAddress::ZERO);
-        let block_header =
-            self.caller
-                .call_function(&ctx, call)?
-                .into_result()
-                .map(|mut values| {
-                    let value = values.pop().expect("should have one return value");
-                    bcs::from_bytes::<MoveOption<Header>>(&value.value)
-                        .expect("should be a valid MoveOption<BlockHeader>")
-                })?;
+        let block_header = {
+            let call_result = self.caller.call_function(&ctx, call)?.into_result();
+            match call_result {
+                Ok(mut return_vec) => {
+                    let first_return_value = match return_vec.pop() {
+                        None => return Err(anyhow::Error::msg("should have one return value")),
+                        Some(v) => v,
+                    };
+                    match bcs::from_bytes::<MoveOption<Header>>(&first_return_value.value) {
+                        Ok(header) => header,
+                        Err(_) => {
+                            return Err(anyhow::Error::msg(
+                                "should be a valid MoveOption<BlockHeader>",
+                            ))
+                        }
+                    }
+                }
+                Err(_) => {
+                    return Err(anyhow::Error::msg(
+                        "should be a valid MoveOption<BlockHeader>",
+                    ))
+                }
+            }
+        };
         Ok(block_header.into())
     }
 
@@ -119,15 +149,24 @@ impl<'a> BitcoinLightClientModule<'a> {
             vec![MoveValue::Address(block_hash.into_address())],
         );
         let ctx = TxContext::new_readonly_ctx(AccountAddress::ZERO);
-        let height = self
-            .caller
-            .call_function(&ctx, call)?
-            .into_result()
-            .map(|mut values| {
-                let value = values.pop().expect("should have one return value");
-                bcs::from_bytes::<MoveOption<u64>>(&value.value)
-                    .expect("should be a valid MoveOption<u64>")
-            })?;
+        let height = {
+            let call_result = self.caller.call_function(&ctx, call)?.into_result();
+            match call_result {
+                Ok(mut return_vec) => {
+                    let first_return_value = match return_vec.pop() {
+                        None => return Err(anyhow::Error::msg("should have one return value")),
+                        Some(v) => v,
+                    };
+                    match bcs::from_bytes::<MoveOption<u64>>(&first_return_value.value) {
+                        Ok(header) => header,
+                        Err(_) => {
+                            return Err(anyhow::Error::msg("should be a valid MoveOption<u64>"))
+                        }
+                    }
+                }
+                Err(_) => return Err(anyhow::Error::msg("should be a valid MoveOption<u64>")),
+            }
+        };
         Ok(height.into())
     }
 
@@ -135,15 +174,24 @@ impl<'a> BitcoinLightClientModule<'a> {
         let call =
             Self::create_function_call(Self::GET_LATEST_BLOCK_HEIGHT_FUNCTION_NAME, vec![], vec![]);
         let ctx = TxContext::new_readonly_ctx(AccountAddress::ZERO);
-        let height = self
-            .caller
-            .call_function(&ctx, call)?
-            .into_result()
-            .map(|mut values| {
-                let value = values.pop().expect("should have one return value");
-                bcs::from_bytes::<MoveOption<u64>>(&value.value)
-                    .expect("should be a valid MoveOption<u64>")
-            })?;
+        let height = {
+            let call_result = self.caller.call_function(&ctx, call)?.into_result();
+            match call_result {
+                Ok(mut return_vec) => {
+                    let first_return_value = match return_vec.pop() {
+                        None => return Err(anyhow::Error::msg("should have one return value")),
+                        Some(v) => v,
+                    };
+                    match bcs::from_bytes::<MoveOption<u64>>(&first_return_value.value) {
+                        Ok(header) => header,
+                        Err(_) => {
+                            return Err(anyhow::Error::msg("should be a valid MoveOption<u64>"))
+                        }
+                    }
+                }
+                Err(_) => return Err(anyhow::Error::msg("should be a valid MoveOption<u64>")),
+            }
+        };
         Ok(height.into())
     }
 

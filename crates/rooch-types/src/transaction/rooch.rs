@@ -55,19 +55,23 @@ impl RoochTransactionData {
         }
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        bcs::to_bytes(self).expect("encode transaction should success")
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        match bcs::to_bytes(self) {
+            Ok(v) => Ok(v),
+            Err(_) => Err(anyhow::Error::msg("encode transaction should success")),
+        }
     }
 
-    pub fn tx_hash(&self) -> H256 {
-        moveos_types::h256::sha3_256_of(self.encode().as_slice())
+    pub fn tx_hash(&self) -> Result<H256> {
+        let tx_bytes = self.encode()?;
+        Ok(moveos_types::h256::sha3_256_of(tx_bytes.as_slice()))
     }
 
-    pub fn sign(self, kp: &RoochKeyPair) -> RoochTransaction {
-        let signature = Signature::new_hashed(self.tx_hash().as_bytes(), kp);
+    pub fn sign(self, kp: &RoochKeyPair) -> Result<RoochTransaction> {
+        let signature = Signature::new_hashed(self.tx_hash()?.as_bytes(), kp);
         //TODO implement Signature into Authenticator
         let authenticator = Authenticator::rooch(signature);
-        RoochTransaction::new(self, authenticator)
+        Ok(RoochTransaction::new(self, authenticator))
     }
 }
 
@@ -130,7 +134,7 @@ impl RoochTransaction {
     }
 
     //TODO unify the hash function
-    pub fn tx_hash(&self) -> H256 {
+    pub fn tx_hash(&self) -> Result<H256> {
         //TODO cache the hash
         self.data.tx_hash()
     }
@@ -182,6 +186,24 @@ impl RoochTransaction {
     }
 }
 
+impl TryFrom<RoochTransaction> for MoveOSTransaction {
+    type Error = anyhow::Error;
+
+    fn try_from(mut tx: RoochTransaction) -> anyhow::Result<Self, Self::Error> {
+        let tx_hash = tx.tx_hash()?;
+        let tx_size = tx.tx_size();
+        let tx_ctx = TxContext::new(
+            tx.data.sender.into(),
+            tx.data.sequence_number,
+            tx.data.max_gas_amount,
+            tx_hash,
+            tx_size,
+        );
+        Ok(MoveOSTransaction::new(tx_ctx, tx.data.action))
+    }
+}
+
+/*
 impl From<RoochTransaction> for MoveOSTransaction {
     fn from(tx: RoochTransaction) -> Self {
         let tx_hash = tx.tx_hash();
@@ -196,6 +218,7 @@ impl From<RoochTransaction> for MoveOSTransaction {
         MoveOSTransaction::new(tx_ctx, tx.data.action)
     }
 }
+ */
 
 impl TryFrom<RawTransaction> for RoochTransaction {
     type Error = anyhow::Error;

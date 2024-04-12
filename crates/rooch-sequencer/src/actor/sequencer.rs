@@ -56,7 +56,7 @@ impl SequencerActor {
         } else {
             self.last_order + 1
         };
-        let hash = tx_data.tx_hash();
+        let hash = tx_data.tx_hash()?;
         let mut witness_data = hash.as_ref().to_vec();
         witness_data.extend(tx_order.to_le_bytes().iter());
         let witness_hash = h256::sha3_256_of(&witness_data);

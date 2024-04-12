@@ -52,6 +52,23 @@ pub struct TransactionView {
     pub raw: BytesView,
 }
 
+/*
+impl TryFrom<RoochTransaction> for TransactionView {
+    type Error = anyhow::Error;
+
+    fn try_from(transaction: RoochTransaction) -> Result<Self, Self::Error> {
+        Ok(Self {
+            sequence_number: transaction.sequence_number(),
+            sender: transaction.sender().to_string(),
+            action: transaction.action().clone().into(),
+            action_type: transaction.action().clone().into(),
+            raw: transaction.encode()?.into(),
+        })
+    }
+}
+
+ */
+
 impl From<RoochTransaction> for TransactionView {
     fn from(transaction: RoochTransaction) -> Self {
         Self {

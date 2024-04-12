@@ -118,7 +118,7 @@ impl ExecutorActor {
             for (genesis_tx, (state_root, size, genesis_tx_output)) in
                 self.genesis.genesis_txs().into_iter().zip(genesis_result)
             {
-                let tx_hash = genesis_tx.tx_hash();
+                let tx_hash = genesis_tx.tx_hash()?;
                 self.handle_tx_output(tx_hash, state_root, size, genesis_tx_output)?;
             }
 
@@ -256,7 +256,7 @@ impl ExecutorActor {
 
         let authenticator = tx.authenticator_info()?;
 
-        let mut moveos_tx: MoveOSTransaction = tx.into();
+        let mut moveos_tx: MoveOSTransaction = tx.try_into()?;
 
         let vm_result = self.validate_authenticator(&moveos_tx.ctx, authenticator)?;
 

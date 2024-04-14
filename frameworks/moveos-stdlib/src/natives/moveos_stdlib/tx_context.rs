@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::{
     helpers::make_module_natives, moveos_stdlib::raw_table::ObjectRuntimeContext,
 };
@@ -39,8 +40,13 @@ fn native_borrow(
     ty_args: Vec<Type>,
     arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(arguments.is_empty());
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if !arguments.is_empty() {
+        return args_count_error(gas_params.base);
+    }
 
     let tx_context = borrow_tx_context(context)?;
     Ok(NativeResult::ok(gas_params.base, smallvec![tx_context]))
@@ -76,8 +82,13 @@ fn native_borrow_mut(
     ty_args: Vec<Type>,
     arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(arguments.is_empty());
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if !arguments.is_empty() {
+        return args_count_error(gas_params.base);
+    }
 
     let tx_context = borrow_tx_context(context)?;
     Ok(NativeResult::ok(gas_params.base, smallvec![tx_context]))

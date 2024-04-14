@@ -3,6 +3,7 @@
 
 use crate::natives::helpers::make_module_natives;
 
+use crate::args_count_error;
 use move_binary_format::errors::PartialVMResult;
 use move_core_types::gas_algebra::InternalGas;
 use move_vm_runtime::native_functions::{NativeContext, NativeFunction};
@@ -23,8 +24,13 @@ fn native_destroy(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    assert_eq!(ty_args.len(), 1);
-    assert_eq!(args.len(), 1);
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     args.pop_back();
     Ok(NativeResult::ok(gas_params.base, smallvec![]))

@@ -16,6 +16,7 @@ use move_vm_types::{
 use crate::natives::helpers::{make_module_natives, make_native};
 use move_vm_runtime::native_functions::{NativeContext, NativeFunction};
 
+use crate::args_count_error;
 use move_core_types::gas_algebra::{InternalGas, InternalGasPerByte, NumBytes};
 use smallvec::smallvec;
 use std::collections::VecDeque;
@@ -33,8 +34,13 @@ pub fn native_verify(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 3);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 3 {
+        return args_count_error(gas_params.base);
+    }
 
     let msg = pop_arg!(args, VectorRef);
     let msg_ref = msg.as_bytes_ref();

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::raw_table;
+use crate::args_count_error;
 use crate::natives::{
     helpers::make_module_natives, helpers::make_native,
     moveos_stdlib::raw_table::ObjectRuntimeContext,
@@ -52,8 +53,13 @@ fn native_as_ref_inner(
     ty_args: Vec<Type>,
     mut arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.len() == 1);
-    debug_assert!(arguments.len() == 1);
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if arguments.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let object_id = arguments.pop_back().unwrap();
     let object_ref = borrow_object_reference(context, object_id, &ty_args[0])?;
@@ -90,8 +96,13 @@ fn native_as_mut_ref_inner(
     ty_args: Vec<Type>,
     mut arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.len() == 1);
-    debug_assert!(arguments.len() == 1);
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if arguments.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let object_id = arguments.pop_back().unwrap();
     let object_ref = borrow_object_reference(context, object_id, &ty_args[0])?;

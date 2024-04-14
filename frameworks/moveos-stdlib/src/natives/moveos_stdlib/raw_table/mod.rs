@@ -3,6 +3,7 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use better_any::{Tid, TidAble};
 use move_binary_format::errors::{Location, PartialVMError, PartialVMResult, VMResult};
 use move_core_types::{
@@ -1078,8 +1079,14 @@ fn native_borrow_root(
     ty_args: Vec<Type>,
     args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert_eq!(ty_args.len(), 0);
-    debug_assert_eq!(args.len(), 0);
+    if !ty_args.is_empty() {
+        return args_count_error(common_gas_params.load_base);
+    }
+
+    if !args.is_empty() {
+        return args_count_error(common_gas_params.load_base);
+    }
+
     let object_context = context.extensions().get::<ObjectRuntimeContext>();
     let object_runtime = object_context.object_runtime.write();
     let value = object_runtime
@@ -1113,8 +1120,13 @@ fn native_add_field(
     //0 K Type
     //1 V Type FieldValue or ObjectEntity
 
-    debug_assert_eq!(ty_args.len(), 2);
-    debug_assert_eq!(args.len(), 3);
+    if ty_args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 3 {
+        return args_count_error(gas_params.base);
+    }
 
     let val = args.pop_back().unwrap();
     let key = args.pop_back().unwrap();
@@ -1161,8 +1173,13 @@ fn native_borrow_field(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert_eq!(ty_args.len(), 2);
-    debug_assert_eq!(args.len(), 2);
+    if ty_args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
 
     let key = args.pop_back().unwrap();
     let object_id = pop_object_id(&mut args)?;
@@ -1207,6 +1224,14 @@ fn native_contains_field(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
     debug_assert_eq!(ty_args.len(), 1);
     debug_assert_eq!(args.len(), 2);
 
@@ -1244,8 +1269,13 @@ fn native_contains_field_with_value_type(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert_eq!(ty_args.len(), 2);
-    debug_assert_eq!(args.len(), 2);
+    if ty_args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
 
     let key = args.pop_back().unwrap();
     let object_id = pop_object_id(&mut args)?;
@@ -1296,8 +1326,13 @@ fn native_remove_field(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert_eq!(ty_args.len(), 2);
-    debug_assert_eq!(args.len(), 2);
+    if ty_args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
 
     let key = args.pop_back().unwrap();
     let object_id = pop_object_id(&mut args)?;

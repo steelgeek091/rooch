@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::helpers::{make_module_natives, make_native};
 use bech32::Variant;
 use move_binary_format::errors::PartialVMResult;
@@ -30,8 +31,13 @@ pub fn native_base58(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 1);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let mut cost = gas_params.base;
 
@@ -62,8 +68,13 @@ pub fn native_base58check(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 2);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
 
     let mut cost = gas_params.base;
 
@@ -99,8 +110,13 @@ pub fn native_bech32(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 1);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let data = pop_arg!(args, VectorRef);
 

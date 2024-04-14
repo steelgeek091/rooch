@@ -3,6 +3,7 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
+use crate::args_count_error;
 use move_binary_format::errors::{PartialVMError, PartialVMResult};
 use move_core_types::{gas_algebra::InternalGas, language_storage::TypeTag, vm_status::StatusCode};
 use move_vm_runtime::native_functions::{NativeContext, NativeFunction};
@@ -39,8 +40,13 @@ fn native_module_signer(
     ty_args: Vec<Type>,
     arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.len() == 1);
-    debug_assert!(arguments.is_empty());
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if !arguments.is_empty() {
+        return args_count_error(gas_params.base);
+    }
 
     let type_tag = context.type_to_type_tag(&ty_args[0])?;
 

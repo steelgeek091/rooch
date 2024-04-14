@@ -17,6 +17,7 @@ use move_vm_types::values::{Struct, Value};
 use serde_json::Value as JSONValue;
 use smallvec::smallvec;
 
+use crate::args_count_error;
 use moveos_wasm::wasm::{
     create_wasm_instance, get_instance_pool, insert_wasm_instance, put_data_on_stack,
 };
@@ -66,10 +67,7 @@ fn native_create_wasm_instance(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 1 {
-        return Ok(NativeResult::err(
-            gas_params.base_create_instance,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base_create_instance);
     }
     let wasm_bytes = pop_arg!(args, Vec<u8>);
     let wasm_instance = match create_wasm_instance(&wasm_bytes) {
@@ -124,10 +122,7 @@ fn native_create_cbor_values(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 1 {
-        return Ok(NativeResult::err(
-            gas_params.base,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base);
     }
 
     let value_list = pop_arg!(args, Vec<Value>);
@@ -213,10 +208,7 @@ fn native_add_length_with_data(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 1 {
-        return Ok(NativeResult::err(
-            gas_params.base,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base);
     }
 
     let mut data = pop_arg!(args, Vec<u8>);
@@ -260,10 +252,7 @@ fn native_create_wasm_args_in_memory(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 3 {
-        return Ok(NativeResult::err(
-            gas_params.base_create_args,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base_create_args);
     }
 
     let func_args_value = pop_arg!(args, Vec<Value>);
@@ -371,10 +360,7 @@ fn native_execute_wasm_function(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 3 {
-        return Ok(NativeResult::err(
-            gas_params.base_create_execution,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base_create_execution);
     }
 
     let func_args = pop_arg!(args, Vec<u64>);
@@ -481,10 +467,7 @@ fn native_read_data_length(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 2 {
-        return Ok(NativeResult::err(
-            gas_params.base,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base);
     }
 
     let data_ptr = pop_arg!(args, u64);
@@ -553,10 +536,7 @@ fn native_read_data_from_heap(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     if args.len() != 3 {
-        return Ok(NativeResult::err(
-            gas_params.base,
-            E_INCORRECT_LENGTH_OF_ARGS,
-        ));
+        return args_count_error(gas_params.base);
     }
 
     let data_length = pop_arg!(args, u32);
@@ -650,6 +630,10 @@ fn native_release_wasm_instance(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
     let value = match args.pop_back() {
         Some(v) => v,
         None => return build_err(gas_params.base, E_INCORRECT_LENGTH_OF_ARGS),

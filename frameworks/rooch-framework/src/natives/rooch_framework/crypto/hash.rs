@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::helpers::{make_module_natives, make_native};
 use fastcrypto::hash::{Blake2b256, HashFunction, Keccak256};
 use move_binary_format::errors::PartialVMResult;
@@ -21,8 +22,13 @@ fn hash<H: HashFunction<DIGEST_SIZE>, const DIGEST_SIZE: usize>(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 1);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let msg = pop_arg!(args, VectorRef);
 

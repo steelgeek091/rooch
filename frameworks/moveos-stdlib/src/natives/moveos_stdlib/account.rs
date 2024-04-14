@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use move_binary_format::errors::PartialVMResult;
 use move_core_types::account_address::AccountAddress;
 use move_core_types::gas_algebra::InternalGas;
@@ -39,8 +40,13 @@ pub fn native_create_signer(
     ty_args: Vec<Type>,
     mut arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(arguments.len() == 1);
+    if ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if arguments.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let address = pop_arg!(arguments, AccountAddress);
     Ok(NativeResult::ok(

@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::helpers::{make_module_natives, make_native};
 use bech32::{self, ToBase32, Variant};
 use move_binary_format::errors::PartialVMResult;
@@ -19,6 +20,7 @@ pub const E_INVALID_PUBKEY: u64 = 1;
 pub const E_EXCESSIVE_SCRIPT_SIZE: u64 = 2;
 pub const E_INVALID_DATA: u64 = 3;
 pub const E_INVALID_SCRIPT_VERSION: u64 = 4;
+pub const E_MARSHAL_FAILED: u64 = 5;
 
 /***************************************************************************************************
  * native fun base58
@@ -33,8 +35,13 @@ pub fn native_base58(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 1);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let address_bytes = pop_arg!(args, VectorRef);
 
@@ -62,8 +69,13 @@ pub fn native_base58check(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 2);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let version_byte = pop_arg!(args, u8);
     let address_bytes = pop_arg!(args, VectorRef);
@@ -94,8 +106,13 @@ pub fn native_bech32(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 2);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
 
     let version = pop_arg!(args, u8);
     let public_key = pop_arg!(args, VectorRef);
@@ -109,8 +126,13 @@ pub fn native_bech32(
         ("bech32m", Variant::Bech32m)
     };
 
-    let encoded =
-        bech32::encode(hrp, public_key.as_bytes_ref().to_vec().to_base32(), variant).unwrap();
+    let encoded = match bech32::encode(hrp, public_key.as_bytes_ref().to_vec().to_base32(), variant)
+    {
+        Ok(v) => v,
+        Err(_) => {
+            return Ok(NativeResult::err(gas_params.base, E_MARSHAL_FAILED));
+        }
+    };
 
     Ok(NativeResult::ok(
         cost,

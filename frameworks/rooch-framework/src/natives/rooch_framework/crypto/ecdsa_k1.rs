@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::helpers::{make_module_natives, make_native};
 use fastcrypto::{
     hash::{Keccak256, Sha256},
@@ -35,8 +36,13 @@ pub fn native_ecrecover(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 3);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 3 {
+        return args_count_error(gas_params.base);
+    }
 
     let hash = pop_arg!(args, u8);
     let msg = pop_arg!(args, VectorRef);
@@ -74,8 +80,13 @@ pub fn native_decompress_pubkey(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 1);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let pubkey = pop_arg!(args, VectorRef);
     let pubkey_ref = pubkey.as_bytes_ref();
@@ -101,8 +112,13 @@ pub fn native_verify(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 4);
+    if !ty_args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 4 {
+        return args_count_error(gas_params.base);
+    }
 
     let hash = pop_arg!(args, u8);
 

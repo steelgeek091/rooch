@@ -14,6 +14,9 @@ use move_vm_types::values::Value;
 use smallvec::smallvec;
 
 use moveos_stdlib::natives::helpers::{make_module_natives, make_native};
+use moveos_stdlib::natives::moveos_stdlib::wasm::{
+    E_CBOR_MARSHAL_FAILED, E_INCORRECT_LENGTH_OF_ARGS,
+};
 
 #[derive(Debug, Clone)]
 pub struct ArgsPackingGasParameters {
@@ -38,6 +41,13 @@ pub fn native_pack_inscribe_generate_args(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.len() != 6 {
+        return Ok(NativeResult::err(
+            gas_params.base,
+            E_INCORRECT_LENGTH_OF_ARGS,
+        ));
+    }
+
     let user_input_key = pop_arg!(args, Vec<u8>);
     let user_input = pop_arg!(args, Vec<u8>);
     let seed_key = pop_arg!(args, Vec<u8>);
@@ -77,7 +87,10 @@ pub fn native_pack_inscribe_generate_args(
     ));
 
     let mut top_buffer = Vec::new();
-    ciborium::into_writer(&ciborium::Value::Map(cbor_buffer_map_pair), &mut top_buffer).expect("");
+    match ciborium::into_writer(&ciborium::Value::Map(cbor_buffer_map_pair), &mut top_buffer) {
+        Ok(_) => {}
+        Err(_) => return Ok(NativeResult::err(gas_params.base, E_CBOR_MARSHAL_FAILED)),
+    }
 
     let mut cost = gas_params.base;
     let total_length = user_input_key.len()

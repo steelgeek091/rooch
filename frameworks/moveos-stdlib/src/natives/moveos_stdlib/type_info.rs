@@ -7,6 +7,7 @@
 // Source code from https://github.com/aptos-labs/aptos-core/blob/c76c6b0fc3a1b8e21b6ba2f77151ca20ea31ca32/aptos-move/moveos_stdlib/src/natives/type_info.rs#L1
 // TODO use the SafeNativeContext
 
+use crate::args_count_error;
 use move_binary_format::errors::PartialVMResult;
 use move_core_types::{
     gas_algebra::{InternalGas, InternalGasPerByte, NumBytes},
@@ -62,8 +63,13 @@ fn native_type_of(
     ty_args: Vec<Type>,
     arguments: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.len() == 1);
-    debug_assert!(arguments.is_empty());
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if !arguments.is_empty() {
+        return args_count_error(gas_params.base);
+    }
 
     let type_tag = context.type_to_type_tag(&ty_args[0])?;
 

@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::helpers::{make_module_natives, make_native};
 use anyhow::Result;
 use log::debug;
@@ -235,8 +236,13 @@ fn native_from_json(
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
-    debug_assert_eq!(ty_args.len(), 1);
-    debug_assert_eq!(args.len(), 1);
+    if ty_args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
 
     let mut cost = gas_params.base;
     let type_param = &ty_args[0];

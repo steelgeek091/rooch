@@ -189,7 +189,7 @@ impl RoochTransaction {
 impl TryFrom<RoochTransaction> for MoveOSTransaction {
     type Error = anyhow::Error;
 
-    fn try_from(mut tx: RoochTransaction) -> anyhow::Result<Self, Self::Error> {
+    fn try_from(tx: RoochTransaction) -> anyhow::Result<Self, Self::Error> {
         let tx_hash = tx.tx_hash()?;
         let tx_size = tx.tx_size();
         let tx_ctx = TxContext::new(

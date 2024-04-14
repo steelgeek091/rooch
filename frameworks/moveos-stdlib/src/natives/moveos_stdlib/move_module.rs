@@ -1,6 +1,7 @@
 // Copyright (c) RoochNetwork
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::args_count_error;
 use crate::natives::helpers::{make_module_natives, make_native};
 use better_any::{Tid, TidAble};
 use framework_builder::dependency_order::sort_by_dependency_order;
@@ -73,6 +74,10 @@ fn native_module_id_inner(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.len() != 1 {
+        return args_count_error(gas_params.base);
+    }
+
     let byte_codes = pop_arg!(args, VectorRef);
     let byte_codes_ref = byte_codes.as_bytes_ref();
 
@@ -99,6 +104,10 @@ fn native_module_id_from_name_inner(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
     let name = args.pop_back().unwrap();
     let name_ident = unpack_string_to_identifier(name)?;
     let account_address = pop_arg!(args, AccountAddress);
@@ -134,6 +143,10 @@ fn native_sort_and_verify_modules_inner(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.len() < 2 {
+        return args_count_error(gas_params.base);
+    }
+
     let mut cost = gas_params.base;
     let account_address = pop_arg!(args, AccountAddress);
     let mut bundle = vec![];
@@ -243,6 +256,10 @@ fn request_init_functions(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.is_empty() {
+        return args_count_error(gas_params.base);
+    }
+
     let mut cost = gas_params.base;
     let module_context = context.extensions_mut().get_mut::<NativeModuleContext>();
     for id_value in pop_arg!(args, Vec<Value>) {
@@ -279,6 +296,10 @@ fn check_compatibililty_inner(
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    if args.len() != 2 {
+        return args_count_error(gas_params.base);
+    }
+
     let mut cost = gas_params.base;
     // TODO: config compatibility through global configuration
     let compat = Compatibility::full_check();
@@ -322,7 +343,10 @@ where
     F: Fn(&mut CompiledModule, &HashMap<C, C>) -> PartialVMResult<()>,
     TF: Fn(Value) -> PartialVMResult<C>,
 {
-    debug_assert!(args.len() == 3, "Wrong number of arguments");
+    if args.len() != 3 {
+        return args_count_error(gas_params.base);
+    }
+
     let mut cost = gas_params.base;
     let new_vec = pop_arg!(args, Vector);
     let old_vec = pop_arg!(args, Vector);

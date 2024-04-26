@@ -927,16 +927,22 @@ impl<'a> ExtendedChecker<'a> {
 
 impl<'a> ExtendedChecker<'a> {
     fn check_data_struct(&mut self, module_env: &ModuleEnv) {
+        // 循环每个结构体
         for struct_def in module_env.get_structs() {
+            // 如果结构体是 #[data_struct] 注释
             if is_data_struct_annotation(&struct_def, module_env) {
+                // 如果结构体有 copy 和 drop
                 if is_copy_drop_struct(&struct_def) {
+                    // 检查结构体的每个字段是否符合 data struct 定义
                     let (error_message, is_allowed) =
                         check_data_struct_fields(&struct_def, module_env);
+                    // 如果不满足 data struct 定义则报编译错误
                     if !is_allowed {
                         self.env
                             .error(&struct_def.get_loc(), error_message.as_str());
                     }
                 } else {
+                    // 如果没有 copy 和 drop 则报告编译错误
                     let struct_name = struct_def.get_full_name_str();
                     self.env.error(
                         &struct_def.get_loc(),
@@ -950,6 +956,7 @@ impl<'a> ExtendedChecker<'a> {
             }
         }
 
+        // 从 ModuleEnv 中取出 CompiledModule
         let verified_module = match module_env.get_verified_module() {
             None => {
                 self.env
@@ -959,8 +966,10 @@ impl<'a> ExtendedChecker<'a> {
             Some(module) => module,
         };
 
+        // 获取 mutable 的 RuntimeModuleMetadataV1
         let module_metadata = self.output.entry(verified_module.self_id()).or_default();
 
+        // 取得所有被 #[data_struct] 修饰并且符合 data struct 的结构体
         let data_struct_map = unsafe {
             let result: BTreeMap<String, bool> = GLOBAL_DATA_STRUCT
                 .iter()
@@ -969,6 +978,8 @@ impl<'a> ExtendedChecker<'a> {
             result
         };
 
+        // 将所有被 #[data_struct] 修饰并且符合 data struct 的结构体
+        // 保存到 RuntimeModuleMetadataV1 之中
         module_metadata.data_struct_map = data_struct_map;
 
         check_data_struct_func(self, module_env);
@@ -976,14 +987,20 @@ impl<'a> ExtendedChecker<'a> {
 }
 
 fn check_data_struct_fields(struct_def: &StructEnv, module_env: &ModuleEnv) -> (String, bool) {
+    // 取得结构体所有字段
     let struct_fields = struct_def.get_fields().collect_vec();
+    // 循环处理每个字段
     for field in struct_fields {
+        // 字段类型
         let field_type = field.get_type();
+        // 字段名称
         let field_name = module_env
             .symbol_pool()
             .string(field.get_name())
             .to_string();
+        // 检查字段是满足 data struct 定义
         let is_allowed = check_data_struct_fields_type(&field_type, module_env);
+        // 不满足则函数返回编译错误
         if !is_allowed {
             let struct_name = module_env
                 .symbol_pool()
@@ -1001,6 +1018,8 @@ fn check_data_struct_fields(struct_def: &StructEnv, module_env: &ModuleEnv) -> (
         }
     }
 
+    // 如果上面检查结构体的每个字段都满足 data struct 定义
+    // 就把结构体名称插入到 GLOBAL_DATA_STRUCT
     let struct_name = module_env
         .symbol_pool()
         .string(struct_def.get_name())
@@ -1016,33 +1035,55 @@ fn check_data_struct_fields(struct_def: &StructEnv, module_env: &ModuleEnv) -> (
 fn check_data_struct_fields_type(field_type: &Type, module_env: &ModuleEnv) -> bool {
     return match field_type {
         Type::Primitive(_) => true,
+        // 如果结构体字段类型是 Vec<T>，检查其中的 T 是否满足 data_struct 定义
         Type::Vector(item_type) => check_data_struct_fields_type(item_type.as_ref(), module_env),
+        // 如果字段是另外一个结构体
         Type::Struct(module_id, struct_id, _) => {
+            // 根据另外一个结构体所在的 module_id，取得另外一个结构体所在的 ModuleEnv
             let module = module_env.env.get_module(*module_id);
 
+            // 取得另外一个结构体的名称
             let struct_name = module_env
                 .symbol_pool()
                 .string(struct_id.symbol())
                 .to_string();
+            // 构成一个完整的结构体名称：模块地址::模块名称::结构体名称
             let full_struct_name = format!("{}::{}", module.get_full_name_str(), struct_name);
 
+            // 如果结构体是三个其中之一则符合 data struct 定义 返回 true
+            // "0x1::string::String" | "0x1::ascii::String" | "0x2::object::ObjectID"
             if is_allowed_data_struct_type(&full_struct_name) {
                 return true;
             }
 
+            // 如果不是则说明这个字段类型是普通结构体，需要进一步检查
+
+            // 取得另外一个结构体所在的 ModuleEnv
             let struct_module = module_env.env.get_module(*module_id);
+            // 取得另外一个结构体的 StructEnv
             let struct_env = struct_module.get_struct(*struct_id);
 
+            // 如果这个结构体不是被 #[data_struct] 修饰则返回 false
+            // 说明最上层结构体的字段虽然也是结构体类型，但它不被 #[data_struct] 修饰.
+            // TODO: 应该是: 虽然不被 #[data_struct] 修饰，但只要所有字段满足要求即可？
             if !is_data_struct_annotation(&struct_env, module_env) {
                 return false;
             }
 
+            // 如果这个结构体没有 copy 和 drop
             if !is_copy_drop_struct(&struct_env) {
                 return false;
             }
 
+            // 检查这个结构体的每个字段
+            // 这里不需要处理 check_data_struct_fields() 函数的返回值
+            // 因为被它检查结构体如何符合 data struct 要求
+            // 则会在全局变量 GLOBAL_DATA_STRUCT 中插入这个结构体的名称
             check_data_struct_fields(&struct_env, &struct_module);
 
+            // 结构体经过 check_data_struct_fields() 函数检查后
+            // 如果在 GLOBAL_DATA_STRUCT 全局变量中没有查到这个被检查的结构体名称
+            // 说明这个结构体不满足 data struct 定义
             let is_allowed_opt = unsafe { GLOBAL_DATA_STRUCT.get(full_struct_name.as_str()) };
             return if let Some(is_allowed) = is_allowed_opt {
                 *is_allowed
@@ -1088,6 +1129,7 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
     let mut type_name_indices: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     let mut func_loc_map = BTreeMap::new();
 
+    // 从 ModuleEnv 中取得 CompiledModule
     let compiled_module = match module_env.get_verified_module() {
         None => {
             module_env
@@ -1098,13 +1140,18 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
         Some(module) => module,
     };
 
+    // 构造一个 Module 的 BinaryIndexedView
     let view = BinaryIndexedView::Module(compiled_module);
 
+    // 循环 ModuleEnv 中的每个函数
     for ref fun in module_env.get_functions() {
+        // 如果函数被 #[data_struct] 修饰
         if has_attribute(extended_checker.env, fun, DATA_STRUCT_ATTRIBUTE) {
             let mut func_type_params_name_list = vec![];
+            // 取得函数的所有泛型参数
             let type_params = fun.get_type_parameters();
 
+            // 循环函数的每个泛型参数，取得这些泛型参数的名字
             for t in type_params {
                 let type_name = extended_checker
                     .env
@@ -1115,16 +1162,21 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
                 func_type_params_name_list.push(type_name);
             }
 
+            // 如果函数的泛型参数是空，则报告编译错误
             if func_type_params_name_list.is_empty() {
                 extended_checker
                     .env
                     .error(&fun.get_loc(), "Function do not has type parameter.");
             }
 
+            // 取得函数的所有属性
             let attributes = fun.get_attributes();
 
+            // 循环函数的 #[data_struct(T1, T2)] 的属性列表
             for attr in attributes {
+                // 如果是 Apply 类型属性
                 if let Attribute::Apply(_, _, types) = attr {
+                    // 如果类型列表是空，则报编译错误
                     if types.is_empty() {
                         extended_checker.env.error(
                             &fun.get_loc(),
@@ -1135,7 +1187,15 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
                     let mut attribute_type_index = vec![];
                     let mut attribute_type_names = vec![];
 
+                    // 循环函数的泛型参数列表
+                    // 并循环 #[data_struct(T0, T2)] 中的类型列表
+                    // 查询 T0 和 T2 在函数的泛型参数列表中的索引和名称
                     for (idx, type_name) in func_type_params_name_list.iter().enumerate() {
+                        // 分别在 attribute_type_index 和 attribute_type_names 中保存类型的索引和名称
+                        // 如果函数有泛型参数 f1<T0, T1, T2>()，函数被 #[data_struct(T0, T2)] 修饰
+                        // 有如下内容：
+                        // attribute_type_index => [0, 2]
+                        // attribute_type_names => ["T0", "T2"]
                         let _ = types
                             .iter()
                             .map(|attr| {
@@ -1156,6 +1216,9 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
                             .collect::<Vec<_>>();
                     }
 
+                    // 再次循环 #[data_struct(T0, T2)] 中的类型名称 T0 和 T2
+                    // 在 attribute_type_names => ["T0", "T2"] 查询这两个类型是否存在
+                    // 不存在则报编译错误
                     let _ = types
                         .iter()
                         .map(|attr| {
@@ -1187,27 +1250,35 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
                         })
                         .collect::<Vec<_>>();
 
+                    // 取得 #[data_struct] 函数所在的模块的地址
                     let module_address = module_env
                         .self_address()
                         .expect_numerical()
                         .to_hex_literal();
+                    // 取得模块名称
                     let module_name = extended_checker
                         .env
                         .symbol_pool()
                         .string(module_env.get_name().name())
                         .as_str()
                         .to_string();
+                    // 取得被 #[data_struct] 修饰的函数的名称
                     let func_name = extended_checker
                         .env
                         .symbol_pool()
                         .string(fun.get_name())
                         .as_str()
                         .to_string();
+                    // 构造函数 #[data_struct] 函数完整的名称
                     let full_path_func_name =
                         format!("{}::{}::{}", module_address, module_name, func_name);
+                    // 在 type_name_indices: BTreeMap<String, Vec<usize>> 之中
+                    // 插入函数名称 和 attribute_type_index => [0, 2] 中的 #[data_struct(T0, T2)] 类型列表在函数泛型参数中的索引号
                     type_name_indices
                         .insert(full_path_func_name.clone(), attribute_type_index.clone());
 
+                    // 同时在 GLOBAL_DATA_STRUCT_FUNC 全局变量
+                    // 也插入函数名称 和 attribute_type_index => [0, 2] 中的 #[data_struct(T0, T2)] 类型列表在函数泛型参数中的索引号
                     unsafe {
                         GLOBAL_DATA_STRUCT_FUNC
                             .insert(full_path_func_name, attribute_type_index.clone());
@@ -1219,6 +1290,7 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
         }
     }
 
+    // 从 ModuleEnv 中取得 CompiledModule
     let compiled_module = match module_env.get_verified_module() {
         None => {
             module_env
@@ -1229,11 +1301,14 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
         Some(module) => module,
     };
 
+    // 取得 mutable 的 RuntimeModuleMetadataV1
     let module_metadata = extended_checker
         .output
         .entry(compiled_module.self_id())
         .or_default();
 
+    // 取得模块的所有函数的 #[data_struct(T0, T2)] 的属性索引
+    // 格式为: 函数名称 => [0, 2]
     let data_struct_func_map = unsafe {
         let result: BTreeMap<String, Vec<usize>> = GLOBAL_DATA_STRUCT_FUNC
             .iter()
@@ -1242,36 +1317,54 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
         result
     };
 
+    // 在模块的 RuntimeModuleMetadataV1.data_struct_func_map 保存所有函数的
+    // 函数名称 => [0, 2]
     module_metadata.data_struct_func_map = data_struct_func_map;
 
+    // 循环模块的所有函数
     for ref fun in module_env.get_functions() {
+        // 如果函数 inline 则跳过
         if fun.is_inline() {
             // The fun.get_bytecode() will only be None when the function is an inline function.
             // So we need to skip inline functions.
             continue;
         }
+
+        // 循环函数的所有指令
         for instr in fun.get_bytecode().unwrap().iter() {
+            // 如果指令是 CallGeneric 泛型函数调用指令
             if let Bytecode::CallGeneric(finst_idx) = instr {
+                // 根据函数的索引号 finst_idx
+                // 取得 FunctionHandle 索引号 和 类型参数列表
                 let FunctionInstantiation {
                     handle,
                     type_parameters,
                 } = view.function_instantiation_at(*finst_idx);
 
+                // 根据函数的 FunctionHandleIndex 取得 FunctionHandle
                 let fhandle = view.function_handle_at(*handle);
+                // 根据 FunctionHandle 取得 ModuleHandle
                 let module_handle = view.module_handle_at(fhandle.module);
 
+                // 取得泛型函数所在模块的地址
                 let module_address = view
                     .address_identifier_at(module_handle.address)
                     .to_hex_literal();
 
+                // 模块的名称
                 let module_name = view.identifier_at(module_handle.name);
+                // 泛型参数的名称
                 let func_name = view.identifier_at(fhandle.name).to_string();
 
+                // 泛型函数的完整名称
                 let full_path_func_name =
                     format!("{}::{}::{}", module_address, module_name, func_name);
 
+                // 泛型函数的类型参数列表
                 let type_arguments = &view.signature_at(*type_parameters).0;
 
+                // 尝试根据泛型函数名称，在 GLOBAL_DATA_STRUCT_FUNC 全局变量即 函数名称 => [0, 2] 列表中
+                // 取得函数的 #[data_struct(T0, T2)] 的索引值列表 [0, 2]
                 let data_struct_func_types = {
                     unsafe {
                         GLOBAL_DATA_STRUCT_FUNC
@@ -1280,9 +1373,14 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
                     }
                 };
 
+                // 如果根据泛型参数的名称，查询到它的  #[data_struct(T0, T2)] 的索引值列表 [0, 2]
                 if let Some(data_struct_func_indicies) = data_struct_func_types {
+                    // 就循环处理 [0, 2]
                     for generic_type_index in data_struct_func_indicies {
+                        // 根据 data_struct 中的类型索引，在泛型函数的调用参数列表的类型参数之中
+                        // 查找 data_struct 的类型索引对应到实际参数的类型
                         let type_arg = match type_arguments.get(generic_type_index) {
+                            // 查不到报编译错误
                             None => {
                                 extended_checker.env.error(&fun.get_loc(), "");
                                 return;
@@ -1290,9 +1388,13 @@ fn check_data_struct_func(extended_checker: &mut ExtendedChecker, module_env: &M
                             Some(v) => v,
                         };
 
+                        // 检查这个 data_struct 中类型索引对应的实际参数类型
+                        // 是否为 Struct 且是一个合法的被 #[data_struct] 修饰的结构体
+                        // 或者是一个vector<T>，其中 T 类型是一个合法的被 #[data_struct] 修饰的结构体
                         let (is_allowed_struct_type, error_message) =
                             check_func_data_struct(&view, fun, type_arg);
 
+                        // 如果不合法则报编译错误
                         if !is_allowed_struct_type {
                             extended_checker
                                 .env
@@ -1314,13 +1416,21 @@ fn check_func_data_struct(
     let func_name = func_env.get_full_name_str();
     match type_arg {
         SignatureToken::Struct(struct_handle_index) => {
+            // 根据 StructHandleIndex 取得 StructHandle
             let shandle = view.struct_handle_at(*struct_handle_index);
+            // 取得 StructHandle 的 ModuleHandleIndex
             let module_id = shandle.module;
+            // 取得结构体所在的模块的 ModuleHandle
             let module_handle = view.module_handle_at(module_id);
+            // 取得结构体所在的模块的 模块地址
             let module_address = view.address_identifier_at(module_handle.address);
+            // 模块名称
             let module_name = view.identifier_at(module_handle.name);
+            // 完整的模块名称
             let full_module_name = format!("{}::{}", module_address.to_hex_literal(), module_name);
+            // 取得结构体名称
             let struct_name = view.identifier_at(shandle.name).to_string();
+            // 完整的结构体名称
             let full_struct_name = format!(
                 "{}::{}::{}",
                 module_address.to_hex_literal(),
@@ -1329,7 +1439,11 @@ fn check_func_data_struct(
             );
 
             unsafe {
+                // 从 GLOBAL_DATA_STRUCT 全局变量中
+                // 根据 结构体完整名称 尝试获取结构体是否为一个合法的 data_struct 结构体
                 let data_struct_opt = GLOBAL_DATA_STRUCT.get(full_struct_name.as_str());
+                // 如果能找到结构体，并且值是 true
+                // 说明是一个合法的 data_struct 结构体
                 if let Some(is_data_struct) = data_struct_opt {
                     if *is_data_struct {
                         return (true, "".to_string());
@@ -1337,10 +1451,12 @@ fn check_func_data_struct(
                 }
             }
 
+            // 否则说明是结构体不是一个合法的 data_struct 结构体
             (false, format!("The type argument {} of #[data_struct] for function {} in the module {} is not allowed.",
             full_struct_name, func_name, full_module_name))
         }
         // #[data_struct(T)] supports not only structs, but also primitive types and vectors.
+        // 在这里允许嵌套的 vector<vector<T>> 字段类型
         SignatureToken::Vector(item_type) => {
             check_func_data_struct(view, func_env, item_type.deref())
         }

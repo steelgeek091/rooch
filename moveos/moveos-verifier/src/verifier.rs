@@ -687,16 +687,25 @@ where
         }
 
         Some(metadata) => {
-            let data_structs_map = metadata.data_struct_map;
+            // 类型为 结构体名称 => bool 的 Map，保存了编译时检查的结构体是否为合法的 #[data_struct]
+            let mut data_structs_map = metadata.data_struct_map;
+            // 类型 函数名称 => [0, 2] 的 Map
+            // 保存了编译时检查的被 #[data_struct] 修饰的泛型函数的 #[data_struct(T0, T2)] 的索引值列表
             let mut data_structs_func_map = metadata.data_struct_func_map;
+            // 构建被调用当前模块的 BinaryIndexedView
             let view = BinaryIndexedView::Module(caller_module);
 
+            // 循环处理模块的内函数
             for func in &caller_module.function_defs {
                 if let Some(code_unit) = &func.code {
                     for instr in code_unit.code.clone().into_iter() {
+                        // 如果指令是泛型函数调用指令
+                        // 取得被调用函数的 FunctionInstantiationIndex
                         if let Bytecode::CallGeneric(finst_idx) = instr {
                             // Find the module where a function is located based on its InstantiationIndex,
                             // and then find the metadata of the module.
+                            // 从 DB 中根据被调用函数的 FunctionInstantiationIndex
+                            // 尝试取得被调用模块的 CompiledModule
                             let compiled_module_opt =
                                 load_compiled_module_from_finst_idx(db, &view, finst_idx);
 
@@ -708,8 +717,14 @@ where
                                 }
 
                                 // Find the definition records of compile-time data_struct from CompiledModule.
+                                // 尝试取得泛型函数所在的被调用模块的 RuntimeModuleMetadataV1
                                 let metadata_opt =
                                     get_metadata_from_compiled_module(&callee_module);
+                                // 从被调用模块的 RuntimeModuleMetadataV1.data_struct_func_map 中
+                                // 取出 函数名称 => [0, 2] 的 Map
+                                // 并插入到当前模块的同样类型的 Map 中
+                                // 即合并当前模块跟被调用函数所在模块的 函数名称 => [0, 2] 的 Map
+                                // #TODO: 结构体名称 => bool 的 Map 也需要合并？
                                 if let Some(metadata) = metadata_opt {
                                     let _ = metadata
                                         .data_struct_func_map
@@ -718,34 +733,57 @@ where
                                             data_structs_func_map.insert(key.clone(), value.clone())
                                         })
                                         .collect::<Vec<_>>();
+                                    let _ = metadata
+                                        .data_struct_map
+                                        .iter()
+                                        .map(|(key, value)| {
+                                            data_structs_map.insert(key.clone(), value.clone())
+                                        })
+                                        .collect::<Vec<_>>();
                                 }
                             }
 
+                            // 根据被调用泛型函数的 FunctionInstantiationIndex
+                            // 取得被调用泛型函数的 FunctionHandleIndex 和 实际调用的参数列表
                             let FunctionInstantiation {
                                 handle: fhandle_idx,
                                 type_parameters,
                             } = view.function_instantiation_at(finst_idx);
 
+                            // 根据被调用泛型函数的 FunctionHandleIndex 取得 FunctionHandle
                             let fhandle = view.function_handle_at(*fhandle_idx);
+                            // 根据 FunctionHandle.module 取得被调用泛型函数所在模块的 ModuleHandle
                             let module_handle = view.module_handle_at(fhandle.module);
 
+                            // 取得被调用泛型函数所在模块的地址
                             let module_address = view
                                 .address_identifier_at(module_handle.address)
                                 .to_hex_literal();
+                            // 模块的名称
                             let module_name = view.identifier_at(module_handle.name);
+                            // 被调用泛型函数的名称
                             let func_name = view.identifier_at(fhandle.name).to_string();
 
                             // The function name which the CallGeneric is called.
+                            // 完整的被调用泛型函数的名称
                             let full_path_func_name =
                                 format!("{}::{}::{}", module_address, module_name, func_name);
 
+                            // 在 CallGeneric 指令中传递被被调用泛型的实际类型参数
                             let type_arguments = &view.signature_at(*type_parameters).0;
+                            // 尝试从类型为 函数名称 => [0, 2] 的 Map 中
+                            // 取得被调用泛型函数的 #[data_struct(T0, T2)] 的类型索引列表
                             let data_struct_func_types =
                                 data_structs_func_map.get(full_path_func_name.as_str());
 
+                            // 如果从 函数名称 => [0, 2] 的 Map 中 找到了 #[data_struct] 的类型索引列表
                             if let Some(data_struct_types_indices) = data_struct_func_types {
+                                // 就循环处理这个类型索引列表
                                 for generic_type_index in data_struct_types_indices {
+                                    // 从传递被被调用泛型的实际类型参数列表中
+                                    // 根据 #[data_struct] 的类型索引，取得实际调用传递的类型
                                     let type_arg = match type_arguments.get(*generic_type_index) {
+                                        // 如果找不到说明实际调用时，没有传递给被调用的泛型函数足够的类型参数
                                         None => {
                                             return generate_vm_error(
                                                 StatusCode::RESOURCE_DOES_NOT_EXIST,
@@ -758,17 +796,24 @@ where
                                     };
 
                                     match type_arg {
+                                        // 如果 #[data_struct] 的类型索引的类型是结构体
                                         SignatureToken::Struct(struct_handle_idx) => {
+                                            // 取得结构体的 StructHandle
                                             let struct_handle =
                                                 view.struct_handle_at(*struct_handle_idx);
+                                            // 取得结构体所在模块的 ModuleHandle
                                             let module_handle =
                                                 view.module_handle_at(struct_handle.module);
+                                            // 构造完整的结构体名称
                                             let full_struct_name = format!(
                                                 "{}::{}::{}",
                                                 module_handle.address,
                                                 view.identifier_at(module_handle.name),
                                                 view.identifier_at(struct_handle.name)
                                             );
+                                            // 如果类型为 结构体名称 => bool 的 Map 中存在这个结构体名称
+                                            // 说明传递给被调用泛型函数的 #[data_struct] 中的类型，是一个合法的 #[data_struct] 结构体
+                                            // 否则报告虚拟机运行错误
                                             let is_data_struct_opt =
                                                 data_structs_map.get(full_struct_name.as_str());
                                             if is_data_struct_opt.is_none() {
@@ -782,6 +827,8 @@ where
                                                 );
                                             }
                                         }
+                                        // 不是结构体则报告虚拟机运行错误
+                                        // TODO: 是否支持类型参数为嵌套的 vector<T> ?
                                         _ => {
                                             let error_msg = format!("The type parameter when calling function {} is now allowed",
                                                                     full_path_func_name);

@@ -147,15 +147,22 @@ impl ModuleResolver for &Client {
     }
 }
 
+use dashmap::DashMap;
+
 #[derive(Clone)]
 pub struct ClientResolver {
     root: ObjectMeta,
     client: Client,
+    cache: Arc<DashMap<H256, Option<ObjectState>>>,
 }
 
 impl ClientResolver {
     pub fn new(client: Client, root: ObjectMeta) -> Self {
-        Self { root, client }
+        Self {
+            root,
+            client,
+            cache: Arc::new(DashMap::new()),
+        }
     }
 
     fn get_resource_with_metadata(
@@ -219,8 +226,25 @@ impl ModuleResolver for ClientResolver {
     }
 }
 
+use sha3::Digest;
+use sha3::digest::Update;
+
 impl StatelessResolver for ClientResolver {
     fn get_field_at(&self, state_root: H256, key: &FieldKey) -> Result<Option<ObjectState>, Error> {
+        let combined_key = {
+            let mut hasher = sha3::Keccak256::new();
+            Update::update(&mut hasher, state_root.as_bytes());
+            Update::update(&mut hasher, key.0.as_slice());
+            let result = hasher.finalize();
+            H256::from_slice(&result)
+        };
+
+        println!("Cache search: state_root {:?}, key {:?}", state_root, key);
+        if let Some(cached_value) = self.cache.get(&combined_key) {
+            println!("Cache hit! state_root {:?}, key {:?}", state_root, key);
+            return Ok(cached_value.clone());
+        }
+
         tokio::task::block_in_place(|| {
             Handle::current().block_on(async {
                 let access_path = AccessPath::object(ObjectID::new(key.0));
@@ -229,10 +253,13 @@ impl StatelessResolver for ClientResolver {
                     .rooch
                     .get_states(access_path, Some(state_root))
                     .await?;
-                Ok(object_state_view_list.pop().flatten().map(|state_view| {
-                    let v: ObjectState = state_view.into();
-                    v
-                }))
+                let object_state_view = object_state_view_list.pop().unwrap();
+
+                // 在返回结果之前，将结果存入缓存
+                let object_state = object_state_view.clone().map(|view| view.into());
+                self.cache.insert(combined_key, object_state);
+
+                Ok(object_state_view.map(|view| view.into()))
             })
         })
     }

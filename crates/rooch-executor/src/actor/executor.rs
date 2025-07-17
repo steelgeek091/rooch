@@ -31,6 +31,7 @@ use prometheus::Registry;
 use rooch_notify::actor::NotifyActor;
 use rooch_notify::event::GasUpgradeEvent;
 use rooch_notify::messages::{GasUpgradeMessage, NotifyActorSubscribeMessage};
+use rooch_rpc_client::ClientResolver;
 use rooch_store::state_store::StateStore;
 use rooch_store::RoochStore;
 use rooch_types::address::{BitcoinAddress, MultiChainAddress};
@@ -60,6 +61,7 @@ pub struct ExecutorActor {
     metrics: Arc<ExecutorMetrics>,
     notify_actor: Option<LocalActorRef<NotifyActor>>,
     global_cache_manager: MoveOSCacheManager,
+    client_resolver: Option<ClientResolver>,
 }
 
 type ValidateAuthenticatorResult = Result<TxValidateResult, VMStatus>;
@@ -72,12 +74,14 @@ impl ExecutorActor {
         registry: &Registry,
         notify_actor: Option<LocalActorRef<NotifyActor>>,
         global_cache_manager: MoveOSCacheManager,
+        client_resolver: Option<ClientResolver>,
     ) -> Result<Self> {
         let moveos = MoveOS::new(
             moveos_store.clone(),
             system_pre_execute_functions(),
             system_post_execute_functions(),
             global_cache_manager.clone(),
+            client_resolver.clone(),
         )?;
 
         Ok(Self {
@@ -88,6 +92,7 @@ impl ExecutorActor {
             metrics: Arc::new(ExecutorMetrics::new(registry)),
             notify_actor,
             global_cache_manager,
+            client_resolver,
         })
     }
 
@@ -315,15 +320,29 @@ impl ExecutorActor {
                     }
                 }
                 Err(e) => {
-                    let resolver = RootObjectResolver::new(self.root.clone(), &self.moveos_store);
-                    let status_view = explain_vm_status(&resolver, e.clone())?;
-                    tracing::warn!(
-                        "transaction validate vm error, tx_hash: {:?}, error:{:?}",
-                        tx_hash,
-                        status_view,
-                    );
-                    //TODO how to return the vm status to rpc client.
-                    Err(e.into())
+                    if let Some(client_resolver) = &self.client_resolver {
+                        //let resolver =
+                        //    RootObjectResolver::new(self.root.clone(), &self.moveos_store);
+                        let status_view = explain_vm_status(client_resolver, e.clone())?;
+                        tracing::warn!(
+                            "transaction validate vm error, tx_hash: {:?}, error:{:?}",
+                            tx_hash,
+                            status_view,
+                        );
+                        //TODO how to return the vm status to rpc client.
+                        Err(e.into())
+                    } else {
+                        let resolver =
+                            RootObjectResolver::new(self.root.clone(), &self.moveos_store);
+                        let status_view = explain_vm_status(&resolver, e.clone())?;
+                        tracing::warn!(
+                            "transaction validate vm error, tx_hash: {:?}, error:{:?}",
+                            tx_hash,
+                            status_view,
+                        );
+                        //TODO how to return the vm status to rpc client.
+                        Err(e.into())
+                    }
                 }
             },
             Err(e) => {
@@ -549,6 +568,7 @@ impl Handler<EventData> for ExecutorActor {
                 system_pre_execute_functions(),
                 system_post_execute_functions(),
                 self.global_cache_manager.clone(),
+                self.client_resolver.clone(),
             )?;
         }
         Ok(())

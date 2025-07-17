@@ -33,3 +33,4 @@ metrics = { workspace = true }
 rooch-types = { workspace = true }
 rooch-notify = { workspace = true }
 rooch-store = { workspace = true }
+rooch-rpc-client = { workspace = true }

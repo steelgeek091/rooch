@@ -29,6 +29,7 @@ use moveos_types::transaction::TransactionExecutionInfo;
 use rooch_notify::actor::NotifyActor;
 use rooch_notify::event::GasUpgradeEvent;
 use rooch_notify::messages::NotifyActorSubscribeMessage;
+use rooch_rpc_client::ClientResolver;
 use rooch_store::RoochStore;
 use rooch_types::framework::{system_post_execute_functions, system_pre_execute_functions};
 
@@ -39,6 +40,7 @@ pub struct ReaderExecutorActor {
     rooch_store: RoochStore,
     notify_actor: Option<LocalActorRef<NotifyActor>>,
     global_cache_manager: MoveOSCacheManager,
+    client_resolver: Option<ClientResolver>
 }
 
 impl ReaderExecutorActor {
@@ -48,12 +50,14 @@ impl ReaderExecutorActor {
         rooch_store: RoochStore,
         notify_actor: Option<LocalActorRef<NotifyActor>>,
         global_cache_manager: MoveOSCacheManager,
+        client_resolver: Option<ClientResolver>
     ) -> Result<Self> {
         let moveos = MoveOS::new(
             moveos_store.clone(),
             system_pre_execute_functions(),
             system_post_execute_functions(),
             global_cache_manager.clone(),
+            client_resolver.clone(),
         )?;
 
         Ok(Self {
@@ -63,6 +67,7 @@ impl ReaderExecutorActor {
             rooch_store,
             notify_actor,
             global_cache_manager,
+            client_resolver,
         })
     }
 
@@ -328,6 +333,7 @@ impl Handler<EventData> for ReaderExecutorActor {
                 system_pre_execute_functions(),
                 system_post_execute_functions(),
                 self.global_cache_manager.clone(),
+                self.client_resolver.clone(),
             )?;
         }
         Ok(())

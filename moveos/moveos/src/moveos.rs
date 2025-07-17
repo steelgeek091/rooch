@@ -143,6 +143,8 @@ impl MoveOSCacheManager {
     }
 }
 
+use rooch_rpc_client::ClientResolver;
+
 pub struct MoveOS {
     vm: MoveOSVM,
     //MoveOS do not need to hold the db
@@ -153,6 +155,7 @@ pub struct MoveOS {
     system_pre_execute_functions: Vec<FunctionCall>,
     system_post_execute_functions: Vec<FunctionCall>,
     cache_manager: MoveOSCacheManager,
+    client_resolver: Option<ClientResolver>,
 }
 
 impl MoveOS {
@@ -161,6 +164,7 @@ impl MoveOS {
         system_pre_execute_functions: Vec<FunctionCall>,
         system_post_execute_functions: Vec<FunctionCall>,
         global_cache_manager: MoveOSCacheManager,
+        client_resolver: Option<ClientResolver>
     ) -> Result<Self> {
         let vm = MoveOSVM::new(global_cache_manager.clone())?;
 
@@ -171,6 +175,7 @@ impl MoveOS {
             system_pre_execute_functions,
             system_post_execute_functions,
             cache_manager: global_cache_manager.clone(),
+            client_resolver
         })
     }
 
@@ -280,7 +285,8 @@ impl MoveOS {
         let mut gas_meter = MoveOSGasMeter::new(cost_table, ctx.max_gas_amount, false);
         gas_meter.set_metering(false);
 
-        let resolver = RootObjectResolver::new(root.clone(), &self.db);
+        //let resolver = RootObjectResolver::new(root.clone(), &self.db);
+        let resolver = self.client_resolver.clone().expect("client_resolver is missing");
         let runtime_environment = self.cache_manager.runtime_environment.read();
         let global_module_cache = self.cache_manager.global_module_cache.clone();
         let mut session = self.vm.new_readonly_session(
@@ -333,7 +339,7 @@ impl MoveOS {
             MoveOSGasMeter::new(cost_table, ctx.max_gas_amount, has_io_tired_write_feature);
         gas_meter.charge_io_write(ctx.tx_size)?;
 
-        let resolver = RootObjectResolver::new(root, &self.db);
+        let resolver = self.client_resolver.clone().expect("client_resolver is missing");
         let runtime_environment = self.cache_manager.runtime_environment.read();
         let global_module_cache = self.cache_manager.global_module_cache.clone();
         let mut session = self.vm.new_session(
@@ -497,7 +503,7 @@ impl MoveOS {
     // else return VMError and a bool which indicate if we should respawn the session.
     fn execute_action(
         &self,
-        session: &mut MoveOSSession<'_, '_, RootObjectResolver<MoveOSStore>, MoveOSGasMeter>,
+        session: &mut MoveOSSession<'_, '_, ClientResolver, MoveOSGasMeter>,
         action: VerifiedMoveAction,
     ) -> Result<(), VMError> {
         session.execute_move_action(action)
@@ -506,7 +512,7 @@ impl MoveOS {
     fn execution_cleanup(
         &self,
         is_system_call: bool,
-        mut session: MoveOSSession<'_, '_, RootObjectResolver<MoveOSStore>, MoveOSGasMeter>,
+        mut session: MoveOSSession<'_, '_, ClientResolver, MoveOSGasMeter>,
         status: VMStatus,
         vm_error_info: Option<VMErrorInfo>,
     ) -> Result<(RawTransactionOutput, Option<VMErrorInfo>)> {
@@ -581,7 +587,7 @@ impl MoveOS {
 
 fn extract_execution_state(
     vm_err: VMError,
-    data_cache: &MoveosDataCache<RootObjectResolver<MoveOSStore>>,
+    data_cache: &MoveosDataCache<ClientResolver>,
 ) -> Result<Vec<String>> {
     let mut execution_stack_trace = Vec::new();
     if let Some(exec_state) = vm_err.exec_state() {
@@ -609,7 +615,7 @@ fn extract_execution_state(
 fn func_name_from_db(
     module_id: &ModuleId,
     func_idx: &FunctionDefinitionIndex,
-    data_cache: &MoveosDataCache<RootObjectResolver<MoveOSStore>>,
+    data_cache: &MoveosDataCache<ClientResolver>,
 ) -> Result<String> {
     let module_bytes = data_cache.load_module(module_id)?;
     let compiled_module = CompiledModule::deserialize(module_bytes.as_ref())?;

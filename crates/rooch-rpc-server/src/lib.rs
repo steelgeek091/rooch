@@ -276,6 +276,7 @@ pub async fn run_start_server(opt: RoochOpt, server_opt: ServerOpt) -> Result<Se
         &prometheus_registry,
         Some(notify_actor_ref.clone()),
         global_cache_manager.clone(),
+        None,
     )?;
 
     let executor_actor_ref = executor_actor
@@ -288,6 +289,7 @@ pub async fn run_start_server(opt: RoochOpt, server_opt: ServerOpt) -> Result<Se
         rooch_store.clone(),
         Some(notify_actor_ref.clone()),
         global_cache_manager.clone(),
+        None,
     )?;
 
     let read_executor_ref = reader_executor

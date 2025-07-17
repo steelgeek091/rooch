@@ -1116,6 +1116,7 @@ async fn build_executor_and_store(
         &registry_service.default_registry(),
         Some(notify_actor_ref.clone()),
         global_cache_manager.clone(),
+        Some(client_resolver.clone())
     )?;
 
     let executor_actor_ref = executor_actor
@@ -1128,6 +1129,7 @@ async fn build_executor_and_store(
         rooch_store.clone(),
         None,
         global_cache_manager,
+        Some(client_resolver)
     )?;
 
     let read_executor_ref = reader_executor

@@ -412,7 +412,7 @@ impl RoochGenesisV2 {
             MoveOSCacheManager::new(gas_parameter.all_natives(), global_module_cache.clone());
 
         let (moveos_store, _temp_dir) = MoveOSStore::mock_moveos_store()?;
-        let moveos = MoveOS::new(moveos_store, vec![], vec![], global_cache_manager)?;
+        let moveos = MoveOS::new(moveos_store, vec![], vec![], global_cache_manager, None)?;
         let output = moveos.init_genesis(
             genesis_moveos_tx.clone(),
             genesis_config.genesis_objects.clone(),
@@ -525,6 +525,7 @@ impl RoochGenesisV2 {
             vec![],
             vec![],
             global_cache_manager,
+            None,
         )?;
 
         let genesis_raw_output =

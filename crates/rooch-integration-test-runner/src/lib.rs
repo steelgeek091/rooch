@@ -130,6 +130,7 @@ impl<'a> MoveOSTestAdapter<'a> for MoveOSTestRunner<'a> {
             rooch_types::framework::system_pre_execute_functions(),
             rooch_types::framework::system_post_execute_functions(),
             global_cache_manager,
+            None,
         )
         .unwrap();
 
